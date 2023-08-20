@@ -58,6 +58,7 @@ public actor IdentifiedStorage<ID, Element> where ID: Hashable {
   /// - Parameters:
   ///   - request: The insert request.
   @inlinable
+  @discardableResult
   public func insert<R: InsertRequestConvertible>(
     request: R
   ) async throws -> Element where R.Value == Element {
@@ -170,6 +171,7 @@ public actor IdentifiedStorage<ID, Element> where ID: Hashable {
   ///   - id: The element id to update.
   ///   - request: The element to update request conversion.
   @inlinable
+  @discardableResult
   public func update<R: UpdateRequestConvertible>(
     id: R.ID,
     request: R
@@ -225,6 +227,7 @@ extension IdentifiedStorage where Element: Identifiable, ID == Element.ID {
   /// - Parameters:
   ///   - element: The element to insert.
   @inlinable
+  @discardableResult
   public func insert(_ element: Element) async throws -> Element {
     guard storage[id: element.id] == nil else {
       throw ElementExistsError(id: element.id)
@@ -239,6 +242,7 @@ extension IdentifiedStorage where Element: Identifiable, ID == Element.ID {
   ///  - Parameters:
   ///   - element: The element to update in the storage.
   @inlinable
+  @discardableResult
   public func update(_ element: Element) async throws -> Element {
     guard storage[id: element.id] != nil else {
       XCTFail("Update called on an element that was not found in the storage. \(element.id)")
