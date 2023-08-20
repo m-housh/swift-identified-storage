@@ -53,6 +53,14 @@ test-swift:
 
 test-library: test-macos test-ios test-mac-catalyst test-tvos test-watchos
 
+test-linux:
+	@docker run \
+		--rm \
+		-v "$(PWD):$(PWD)" \
+		-w "$(PWD)" \
+		swift:5.8 \
+		swift package clean && swift test
+
 code-cov-report:
 		@xcrun llvm-cov report \
 			$(COV_BIN) \
@@ -72,7 +80,7 @@ build-documentation:
 	swift package \
 		--allow-writing-to-directory ./docs \
 		generate-documentation \
-		--target Loadable \
+		--target IdentifiedStorage \
 		--disable-indexing \
 		--transform-for-static-hosting \
 		--hosting-base-path swift-identified-storage \

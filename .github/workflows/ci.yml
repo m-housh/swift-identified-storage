@@ -22,3 +22,10 @@ jobs:
       - name: Run ${{ matrix.xcode }} Tests
         run: make CONFIG=${{ matrix.config }} test-library
 
+  ubuntu:
+    name: Ubuntu
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Run tests
+      run: make test-linux

@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 5.8
 
 import PackageDescription
 
@@ -7,8 +7,8 @@ let package = Package(
   platforms: [
     .iOS(.v16),
     .macOS(.v13),
-    .tvOS(.v13),
-    .watchOS(.v6),
+    .tvOS(.v16),
+    .watchOS(.v9),
   ],
   products: [
     .library(name: "IdentifiedStorage", targets: ["IdentifiedStorage"])
