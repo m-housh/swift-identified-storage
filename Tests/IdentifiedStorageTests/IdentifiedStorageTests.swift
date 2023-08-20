@@ -123,7 +123,8 @@ final class IdentifiedStorageTests: XCTestCase {
     )
   }
   
-  func testUpdateFailsWhenIdIsNotFounc() async throws {
+  #if DEBUG
+  func testUpdateFailsWhenIdIsNotFound() async throws {
     let storage = makeStorage(useMocks: false)
     XCTExpectFailure()
     do {
@@ -134,7 +135,7 @@ final class IdentifiedStorageTests: XCTestCase {
     }
   }
   
-  func testUpdateElementFailsWhenIdIsNotFounc() async throws {
+  func testUpdateElementFailsWhenIdIsNotFound() async throws {
     let storage = makeIdentifiedStorage(useMocks: false)
     XCTExpectFailure()
     do {
@@ -144,6 +145,7 @@ final class IdentifiedStorageTests: XCTestCase {
       XCTAssert(true)
     }
   }
+  #endif
   
   func testStream() async throws {
     let storage = makeIdentifiedStorage()
