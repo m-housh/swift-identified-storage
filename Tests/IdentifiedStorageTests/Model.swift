@@ -53,6 +53,7 @@ extension TodoClient.FetchRequest: FetchRequestConvertible {
 }
 
 extension TodoClient.InsertRequest: InsertRequestConvertible {
+  typealias ID = Todo.ID
   func transform() -> Todo {
     @Dependency(\.uuid) var uuid;
     return .init(id: uuid(), description: description)
@@ -60,6 +61,7 @@ extension TodoClient.InsertRequest: InsertRequestConvertible {
 }
 
 extension TodoClient.UpdateRequest: UpdateRequestConvertible {
+  typealias ID = Todo.ID
   func apply(to state: inout Todo) {
     state.description = description
   }
@@ -76,7 +78,7 @@ enum TodoFetchOneRequest: FetchOneRequestConvertible {
 
 extension TodoClient {
   static func mock(
-    initialValues todos: IdentifiedArrayOf<Todo>,
+    initialValues todos: [Todo],
     timeDelays: IdentifiedStorageDelays? = .default
   ) -> Self {
     let storage = IdentifiedStorageOf<Todo>(

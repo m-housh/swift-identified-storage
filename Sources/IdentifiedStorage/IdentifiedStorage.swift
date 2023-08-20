@@ -8,31 +8,37 @@ import XCTestDynamicOverlay
 ///
 /// This is often useful for mocking remote data stores for previews or testing.
 ///
-public actor IdentifiedStorage<Element: Identifiable> {
+public actor IdentifiedStorage<ID, Element> where ID: Hashable {
 
   @Dependency(\.continuousClock) var clock
 
   // The element storage.
-  private var storage: IdentifiedArrayOf<Element>
+  @usableFromInline
+  var storage: IdentifiedArray<ID, Element>
 
   // The time delays.
-  private var timeDelays: IdentifiedStorageDelays?
+  @usableFromInline
+  var timeDelays: IdentifiedStorageDelays?
 
   /// Create a new storage instance with the initial values and time delays.
   ///
   ///  - Parameters:
   ///   - storage: The initial values for the storage.
   ///   - timeDelays: Time delays used in the query operations.
+  @inlinable
+  @inline(__always)
   public init(
-    initialValues storage: IdentifiedArrayOf<Element> = [],
-    timeDelays: IdentifiedStorageDelays? = .init(.seconds(1))
+    id: KeyPath<Element, ID>,
+    initialValues storage: [Element] = [],
+    timeDelays: IdentifiedStorageDelays? = .default
   ) {
-    self.storage = storage
+    self.storage = .init(uniqueElements: storage, id: id)
     self.timeDelays = timeDelays
   }
 
   /// Delete an element by it's id.
-  public func delete(id: Element.ID) async throws {
+  @inlinable
+  public func delete(id: ID) async throws {
     self.storage[id: id] = nil
     try await self.sleep(using: \.delete)
   }
@@ -41,37 +47,28 @@ public actor IdentifiedStorage<Element: Identifiable> {
   ///
   /// - Parameters:
   ///   - shouldDelete: The predicate which returns `true` for elements to remove.
+  @inlinable
   public func delete(where shouldDelete: @escaping (Element) -> Bool) async throws {
     self.storage.removeAll(where: shouldDelete)
     try await self.sleep(using: \.delete)
   }
 
-  /// Inserts a new element in the storage, throwing an error if the element id already exists.
-  ///
-  /// - Parameters:
-  ///   - element: The element to insert.
-  public func insert(_ element: Element) async throws -> Element {
-    guard storage[id: element.id] == nil else {
-      throw ElementExistsError(id: element.id)
-    }
-    self.storage[id: element.id] = element
-    try await self.sleep(using: \.insert)
-    return element
-  }
-
-  /// Inserts a new element in the storage, throwing an error if the element id already exists.
+  /// Inserts a new element in the storage.
   ///
   /// - Parameters:
   ///   - request: The insert request.
+  @inlinable
   public func insert<R: InsertRequestConvertible>(
     request: R
   ) async throws -> Element where R.Value == Element {
     let element = request.transform()
-    return try await insert(element)
+    storage.append(element)
+    return element
   }
 
   /// Fetches all the elements in the storage.
-  public func fetch() async throws -> IdentifiedArrayOf<Element> {
+  @inlinable
+  public func fetch() async throws -> IdentifiedArray<ID, Element> {
     try await self.sleep(using: \.fetch)
     return storage
   }
@@ -80,9 +77,10 @@ public actor IdentifiedStorage<Element: Identifiable> {
   ///
   ///  - Parameters:
   ///   - request: The fetch request to perform.
+  @inlinable
   public func fetch<R: FetchRequestConvertible>(
     request: R
-  ) async throws -> IdentifiedArrayOf<Element> where R.Value == Element {
+  ) async throws -> IdentifiedArray<ID, Element> where R.Value == Element, R.ID == ID {
     try await self.sleep(using: \.fetch)
     return request.fetch(from: storage)
   }
@@ -91,7 +89,8 @@ public actor IdentifiedStorage<Element: Identifiable> {
   ///
   ///  - Parameters:
   ///   - id: The element to fetch from the storage, if it exists.
-  public func fetchOne(id: Element.ID) async throws -> Element? {
+  @inlinable
+  public func fetchOne(id: ID) async throws -> Element? {
     try await self.sleep(using: \.fetch)
     return storage[id: id]
   }
@@ -100,15 +99,17 @@ public actor IdentifiedStorage<Element: Identifiable> {
   ///
   ///  - Parameters:
   ///   - request: The element to fetch from the storage, if it exists.
+  @inlinable
   public func fetchOne<R: FetchOneRequestConvertible>(
     request: R
-  ) async throws -> Element? where R.Value == Element {
+  ) async throws -> Element? where R.Value == Element, R.ID == ID {
     try await self.sleep(using: \.fetch)
     return request.fetchOne(from: storage)
   }
 
   // Helper for sleeping for a duration to mimick a remote storage container.
-  private func sleep(
+  @usableFromInline
+  func sleep(
     using keyPath: KeyPath<IdentifiedStorageDelays, ContinuousClock.Duration>,
     tolerance: ContinuousClock.Duration? = nil
   ) async throws {
@@ -120,13 +121,17 @@ public actor IdentifiedStorage<Element: Identifiable> {
   ///
   ///  - Parameters:
   ///   - elements: The new elements for the storage.
+  @inlinable
   @discardableResult
-  public func set(elements: IdentifiedArrayOf<Element>) async -> IdentifiedArrayOf<Element> {
+  public func set(
+    elements: IdentifiedArray<ID, Element>
+  ) async -> IdentifiedArray<ID, Element> {
     self.storage = elements
     return elements
   }
 
   /// Access all the elements in the storage as an async stream of elements.
+  @inlinable
   public func stream() -> AsyncThrowingStream<Element, Error> {
     .init { continuation in
       Task {
@@ -143,9 +148,10 @@ public actor IdentifiedStorage<Element: Identifiable> {
   ///
   ///  - Parameters:
   ///   - request: The fetch request for the elements to stream.
+  @inlinable
   public func stream<R: FetchRequestConvertible>(
     request: R
-  ) -> AsyncThrowingStream<Element, Error> where R.Value == Element {
+  ) -> AsyncThrowingStream<Element, Error> where R.Value == Element, R.ID == ID {
     .init { continuation in
       Task {
         let values = try await self.fetch(request: request)
@@ -161,26 +167,13 @@ public actor IdentifiedStorage<Element: Identifiable> {
   /// Update an element in the storage, throwing an error and runtime warning if it does not exist.
   ///
   ///  - Parameters:
-  ///   - element: The element to update in the storage.
-  public func update(_ element: Element) async throws -> Element {
-    guard storage[id: element.id] != nil else {
-      XCTFail("Update called on an element that was not found in the storage. \(element.id)")
-      throw ElementNotFoundError(id: element.id, ids: storage.ids)
-    }
-    self.storage[id: element.id] = element
-    try await self.sleep(using: \.update)
-    return element
-  }
-
-  /// Update an element in the storage, throwing an error and runtime warning if it does not exist.
-  ///
-  ///  - Parameters:
   ///   - id: The element id to update.
   ///   - request: The element to update request conversion.
+  @inlinable
   public func update<R: UpdateRequestConvertible>(
-    id: Element.ID,
+    id: R.ID,
     request: R
-  ) async throws -> Element where R.Value == Element {
+  ) async throws -> Element where R.Value == Element, R.ID == ID {
 
     guard var element = self.storage[id: id] else {
       XCTFail("Update called on an element that was not found in the storage. \(id)")
@@ -199,23 +192,92 @@ public actor IdentifiedStorage<Element: Identifiable> {
   ///
   ///  - Parameters:
   ///   - perform: The closure to build your custom response from the values in storage.
+  @inlinable
   @discardableResult
   public func withValues<Response>(
-    perform: @escaping @Sendable (IdentifiedArrayOf<Element>) async throws -> Response
+    perform: @escaping @Sendable (IdentifiedArray<ID, Element>) async throws -> Response
   ) async rethrows -> Response {
     try await perform(storage)
   }
 }
 
-/// Convenience for declaring an ``IdentifiedStorage`` of an `Element` type.
-///
-public typealias IdentifiedStorageOf<Element: Identifiable> = IdentifiedStorage<Element>
+extension IdentifiedStorage where Element: Identifiable, ID == Element.ID {
+  
+  /// Create a new storage instance with the initial values and time delays.
+  ///
+  ///  - Parameters:
+  ///   - storage: The initial values for the storage.
+  ///   - timeDelays: Time delays used in the query operations.
+  @inlinable
+  public init(
+    initialValues storage: [Element] = [],
+    timeDelays: IdentifiedStorageDelays? = .default
+  ) {
+    self.init(
+      id: \.id,
+      initialValues: storage,
+      timeDelays: timeDelays
+    )
+  }
 
-struct ElementNotFoundError<ID: Hashable>: Error {
-  let id: ID
-  let ids: OrderedSet<ID>
+  /// Inserts a new element in the storage, throwing an error if the element id already exists.
+  ///
+  /// - Parameters:
+  ///   - element: The element to insert.
+  @inlinable
+  public func insert(_ element: Element) async throws -> Element {
+    guard storage[id: element.id] == nil else {
+      throw ElementExistsError(id: element.id)
+    }
+    self.storage[id: element.id] = element
+    try await self.sleep(using: \.insert)
+    return element
+  }
+  
+  /// Update an element in the storage, throwing an error and runtime warning if it does not exist.
+  ///
+  ///  - Parameters:
+  ///   - element: The element to update in the storage.
+  @inlinable
+  public func update(_ element: Element) async throws -> Element {
+    guard storage[id: element.id] != nil else {
+      XCTFail("Update called on an element that was not found in the storage. \(element.id)")
+      throw ElementNotFoundError(id: element.id, ids: storage.ids)
+    }
+    self.storage[id: element.id] = element
+    try await self.sleep(using: \.update)
+    return element
+  }
 }
 
-struct ElementExistsError<ID>: Error {
+/// Convenience for declaring an ``IdentifiedStorage`` of an `Element` type.
+///
+public typealias IdentifiedStorageOf<Element: Identifiable> = IdentifiedStorage<Element.ID, Element>
+
+@usableFromInline
+struct ElementNotFoundError<ID: Hashable>: Error {
+  
+  @usableFromInline
   let id: ID
+  
+  @usableFromInline
+  let ids: OrderedSet<ID>
+  
+  @usableFromInline
+  init(id: ID, ids: OrderedSet<ID>) {
+    self.id = id
+    self.ids = ids
+  }
+}
+
+@usableFromInline
+struct ElementExistsError<ID>: Error {
+  
+  @usableFromInline
+  let id: ID
+  
+  @usableFromInline
+  init(id: ID) {
+    self.id = id
+  }
 }

@@ -6,13 +6,11 @@ final class IdentifiedStorageTests: XCTestCase {
   
   let duration: ContinuousClock.Duration = .seconds(1)
   
-  let mockTodos = IdentifiedArrayOf<Todo>(
-    uniqueElements: [
-      Todo(id: UUID(0), description: "Buy milk"),
-      Todo(id: UUID(1), description: "Pickup blob from school."),
-      Todo(id: UUID(2), description: "Walk the dog.", isComplete: false)
-    ]
-  )
+  let mockTodos = [
+    Todo(id: UUID(0), description: "Buy milk"),
+    Todo(id: UUID(1), description: "Pickup blob from school."),
+    Todo(id: UUID(2), description: "Walk the dog.", isComplete: false)
+  ]
   
   func makeStorage(useMocks: Bool = true) -> TodoClient {
     withDependencies {
@@ -31,7 +29,7 @@ final class IdentifiedStorageTests: XCTestCase {
     } operation: {
       .init(
         initialValues: useMocks ? mockTodos : [],
-        timeDelays: .init(duration)
+        timeDelays: .default
       )
     }
   }
@@ -53,7 +51,7 @@ final class IdentifiedStorageTests: XCTestCase {
   func testFetch() async throws {
     let storage = makeStorage()
     let fetched = try await storage.fetch()
-    XCTAssertEqual(fetched, mockTodos)
+    XCTAssertEqual(fetched, .init(uniqueElements: mockTodos))
     
     let completed = try await storage.fetch(.filtered(by: .complete))
     XCTAssertEqual(
@@ -156,7 +154,7 @@ final class IdentifiedStorageTests: XCTestCase {
       fetched.append(todo)
     }
     
-    XCTAssertEqual(mockTodos, .init(uniqueElements: fetched))
+    XCTAssertEqual(mockTodos, fetched)
     
     let completedStream = await storage.stream(
       request: TodoClient.FetchRequest.filtered(by: .complete)
