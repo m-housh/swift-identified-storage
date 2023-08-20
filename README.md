@@ -7,7 +7,7 @@ A swift package for mocking remote storage with a `CRUD` like interface.
 It is often required to mock database clients for purposes of Xcode previews or testing
 code without using a live client.  This package is built on top of the `IdentifiedArray` type
 from [swift-identified-collections](https://github.com/pointfreeco/swift-identified-collections) and
-the [swift-dependencies](https://github.com/pointfreeco/swift-dependencies).
+relies [swift-dependencies](https://github.com/pointfreeco/swift-dependencies) for controllable `clock` operations.
 
 # Installation
 
