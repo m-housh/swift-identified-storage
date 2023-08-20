@@ -202,7 +202,7 @@ public actor IdentifiedStorage<ID, Element> where ID: Hashable {
 }
 
 extension IdentifiedStorage where Element: Identifiable, ID == Element.ID {
-  
+
   /// Create a new storage instance with the initial values and time delays.
   ///
   ///  - Parameters:
@@ -233,7 +233,7 @@ extension IdentifiedStorage where Element: Identifiable, ID == Element.ID {
     try await self.sleep(using: \.insert)
     return element
   }
-  
+
   /// Update an element in the storage, throwing an error and runtime warning if it does not exist.
   ///
   ///  - Parameters:
@@ -256,13 +256,13 @@ public typealias IdentifiedStorageOf<Element: Identifiable> = IdentifiedStorage<
 
 @usableFromInline
 struct ElementNotFoundError<ID: Hashable>: Error {
-  
+
   @usableFromInline
   let id: ID
-  
+
   @usableFromInline
   let ids: OrderedSet<ID>
-  
+
   @usableFromInline
   init(id: ID, ids: OrderedSet<ID>) {
     self.id = id
@@ -272,10 +272,10 @@ struct ElementNotFoundError<ID: Hashable>: Error {
 
 @usableFromInline
 struct ElementExistsError<ID>: Error {
-  
+
   @usableFromInline
   let id: ID
-  
+
   @usableFromInline
   init(id: ID) {
     self.id = id
