@@ -8,7 +8,7 @@ struct Todo: Equatable, Identifiable {
   var isComplete: Bool = true
 }
 
-struct TodoStorage {
+struct TodoClient {
   
   var delete: (Todo.ID) async throws -> Void
   var fetch: (FetchRequest) async throws -> IdentifiedArrayOf<Todo>
@@ -21,7 +21,7 @@ struct TodoStorage {
   
   enum FetchRequest {
     case all
-    case filter(by: Filter)
+    case filtered(by: Filter)
     
     enum Filter {
       case complete
@@ -38,13 +38,13 @@ struct TodoStorage {
   }
 }
 
-extension TodoStorage.FetchRequest: FetchRequestConvertible {
+extension TodoClient.FetchRequest: FetchRequestConvertible {
   
   func fetch(from values: IdentifiedArrayOf<Todo>) -> IdentifiedArrayOf<Todo> {
     switch self {
     case .all:
       return values
-    case let .filter(by: filter):
+    case let .filtered(by: filter):
       return values.filter {
         $0.isComplete == (filter == .complete ? true : false)
       }
@@ -52,16 +52,14 @@ extension TodoStorage.FetchRequest: FetchRequestConvertible {
   }
 }
 
-extension TodoStorage.InsertRequest: InsertRequestConvertible {
+extension TodoClient.InsertRequest: InsertRequestConvertible {
   func transform() -> Todo {
     @Dependency(\.uuid) var uuid;
     return .init(id: uuid(), description: description)
   }
 }
 
-extension TodoStorage.UpdateRequest: UpdateRequestConvertible {
-  typealias Value = Todo
-  
+extension TodoClient.UpdateRequest: UpdateRequestConvertible {
   func apply(to state: inout Todo) {
     state.description = description
   }
@@ -76,10 +74,10 @@ enum TodoFetchOneRequest: FetchOneRequestConvertible {
   }
 }
 
-extension TodoStorage {
+extension TodoClient {
   static func mock(
     initialValues todos: IdentifiedArrayOf<Todo>,
-    timeDelays: IdentifiedStorageDelays? = nil
+    timeDelays: IdentifiedStorageDelays? = .default
   ) -> Self {
     let storage = IdentifiedStorageOf<Todo>(
       initialValues: todos,

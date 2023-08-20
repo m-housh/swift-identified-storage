@@ -1,6 +1,6 @@
 import Dependencies
-@_exported import IdentifiedCollections
 import Foundation
+@_exported import IdentifiedCollections
 import OrderedCollections
 import XCTestDynamicOverlay
 
@@ -10,14 +10,14 @@ import XCTestDynamicOverlay
 ///
 public actor IdentifiedStorage<Element: Identifiable> {
 
-  @Dependency(\.continuousClock) var clock;
-  
+  @Dependency(\.continuousClock) var clock
+
   // The element storage.
   private var storage: IdentifiedArrayOf<Element>
-  
+
   // The time delays.
   private var timeDelays: IdentifiedStorageDelays?
-  
+
   /// Create a new storage instance with the initial values and time delays.
   ///
   ///  - Parameters:
@@ -30,13 +30,13 @@ public actor IdentifiedStorage<Element: Identifiable> {
     self.storage = storage
     self.timeDelays = timeDelays
   }
-  
+
   /// Delete an element by it's id.
   public func delete(id: Element.ID) async throws {
     self.storage[id: id] = nil
     try await self.sleep(using: \.delete)
   }
-  
+
   /// Delete all elements matching the predicate.
   ///
   /// - Parameters:
@@ -45,7 +45,7 @@ public actor IdentifiedStorage<Element: Identifiable> {
     self.storage.removeAll(where: shouldDelete)
     try await self.sleep(using: \.delete)
   }
-  
+
   /// Inserts a new element in the storage, throwing an error if the element id already exists.
   ///
   /// - Parameters:
@@ -58,7 +58,7 @@ public actor IdentifiedStorage<Element: Identifiable> {
     try await self.sleep(using: \.insert)
     return element
   }
-  
+
   /// Inserts a new element in the storage, throwing an error if the element id already exists.
   ///
   /// - Parameters:
@@ -69,13 +69,13 @@ public actor IdentifiedStorage<Element: Identifiable> {
     let element = request.transform()
     return try await insert(element)
   }
-  
+
   /// Fetches all the elements in the storage.
   public func fetch() async throws -> IdentifiedArrayOf<Element> {
     try await self.sleep(using: \.fetch)
     return storage
   }
-  
+
   /// Fetches all the elements in the storage for the given fetch request.
   ///
   ///  - Parameters:
@@ -86,7 +86,7 @@ public actor IdentifiedStorage<Element: Identifiable> {
     try await self.sleep(using: \.fetch)
     return request.fetch(from: storage)
   }
-  
+
   /// Fetches an element by it's id from the storage, if it exists.
   ///
   ///  - Parameters:
@@ -95,7 +95,7 @@ public actor IdentifiedStorage<Element: Identifiable> {
     try await self.sleep(using: \.fetch)
     return storage[id: id]
   }
-  
+
   /// Fetches an element for the given request from the storage, if it exists.
   ///
   ///  - Parameters:
@@ -106,7 +106,7 @@ public actor IdentifiedStorage<Element: Identifiable> {
     try await self.sleep(using: \.fetch)
     return request.fetchOne(from: storage)
   }
-  
+
   // Helper for sleeping for a duration to mimick a remote storage container.
   private func sleep(
     using keyPath: KeyPath<IdentifiedStorageDelays, ContinuousClock.Duration>,
@@ -115,7 +115,7 @@ public actor IdentifiedStorage<Element: Identifiable> {
     guard let timeDelays else { return }
     try await clock.sleep(for: timeDelays[keyPath: keyPath], tolerance: tolerance)
   }
-  
+
   /// Set new elements in the storage, discarding any existing elements.
   ///
   ///  - Parameters:
@@ -125,7 +125,7 @@ public actor IdentifiedStorage<Element: Identifiable> {
     self.storage = elements
     return elements
   }
-  
+
   /// Access all the elements in the storage as an async stream of elements.
   public func stream() -> AsyncThrowingStream<Element, Error> {
     .init { continuation in
@@ -138,7 +138,7 @@ public actor IdentifiedStorage<Element: Identifiable> {
       }
     }
   }
-  
+
   /// Access all the elements in the storage for the given request as an async stream of elements.
   ///
   ///  - Parameters:
@@ -157,7 +157,7 @@ public actor IdentifiedStorage<Element: Identifiable> {
       }
     }
   }
-  
+
   /// Update an element in the storage, throwing an error and runtime warning if it does not exist.
   ///
   ///  - Parameters:
@@ -171,7 +171,7 @@ public actor IdentifiedStorage<Element: Identifiable> {
     try await self.sleep(using: \.update)
     return element
   }
-  
+
   /// Update an element in the storage, throwing an error and runtime warning if it does not exist.
   ///
   ///  - Parameters:
@@ -181,18 +181,18 @@ public actor IdentifiedStorage<Element: Identifiable> {
     id: Element.ID,
     request: R
   ) async throws -> Element where R.Value == Element {
-    
+
     guard var element = self.storage[id: id] else {
       XCTFail("Update called on an element that was not found in the storage. \(id)")
       throw ElementNotFoundError(id: id, ids: storage.ids)
     }
-    
+
     request.apply(to: &element)
     self.storage[id: id] = element
     try await self.sleep(using: \.update)
     return element
   }
-  
+
   /// Access the values in storage for a custom response type.
   ///
   /// This is useful if you need to provide an extension or custom query to the storage container.

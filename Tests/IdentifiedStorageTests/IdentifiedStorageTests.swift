@@ -14,11 +14,11 @@ final class IdentifiedStorageTests: XCTestCase {
     ]
   )
   
-  func makeStorage(useMocks: Bool = true) -> TodoStorage {
+  func makeStorage(useMocks: Bool = true) -> TodoClient {
     withDependencies {
       $0.continuousClock = ImmediateClock()
     } operation: {
-      TodoStorage.mock(
+      TodoClient.mock(
         initialValues: useMocks ? mockTodos : [],
         timeDelays: .init(duration)
       )
@@ -55,13 +55,13 @@ final class IdentifiedStorageTests: XCTestCase {
     let fetched = try await storage.fetch()
     XCTAssertEqual(fetched, mockTodos)
     
-    let completed = try await storage.fetch(.filter(by: .complete))
+    let completed = try await storage.fetch(.filtered(by: .complete))
     XCTAssertEqual(
       completed,
       .init(uniqueElements: mockTodos.prefix(through: 1))
     )
     
-    let inclomplete = try await storage.fetch(.filter(by: .incomplete))
+    let inclomplete = try await storage.fetch(.filtered(by: .incomplete))
     XCTAssertEqual(
       inclomplete,
       [mockTodos.last!]
@@ -156,7 +156,7 @@ final class IdentifiedStorageTests: XCTestCase {
     XCTAssertEqual(mockTodos, .init(uniqueElements: fetched))
     
     let completedStream = await storage.stream(
-      request: TodoStorage.FetchRequest.filter(by: .complete)
+      request: TodoClient.FetchRequest.filtered(by: .complete)
     )
     var completed: IdentifiedArrayOf<Todo> = []
     for try await todo in completedStream {
