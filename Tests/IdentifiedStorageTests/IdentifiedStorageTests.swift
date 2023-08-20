@@ -123,6 +123,7 @@ final class IdentifiedStorageTests: XCTestCase {
     )
   }
   
+  // `XCTExpectFailure` currently does not work on linux, so we exclude these tests.
   #if DEBUG && !canImport(FoundationNetworking)
   func testUpdateFailsWhenIdIsNotFound() async throws {
     let storage = makeStorage(useMocks: false)
