@@ -1,15 +1,17 @@
 # swift-identified-storage
 
+[![CI](https://github.com/m-housh/swift-identified-storage/actions/workflows/ci.yml/badge.svg)](https://github.com/m-housh/swift-identified-storage/actions/workflows/ci.yml)
+
 A swift package for mocking remote storage with a `CRUD` like interface.
 
-# Motivation
+## Motivation
 
 It is often required to mock database clients for purposes of Xcode previews or testing
 code without using a live client.  This package is built on top of the `IdentifiedArray` type
 from [swift-identified-collections](https://github.com/pointfreeco/swift-identified-collections) and
-relies [swift-dependencies](https://github.com/pointfreeco/swift-dependencies) for controllable `clock` operations.
+relies on [swift-dependencies](https://github.com/pointfreeco/swift-dependencies) for controllable `clock` operations.
 
-# Installation
+## Installation
 
 Install this as a swift package into your project.
 
@@ -19,20 +21,20 @@ import PackageDescription
 let package = Package(
     ...
     dependencies: [
-        .package(url: "https://github.com/m-housh/swift-identified-storage.git", from: "0.1.0")
+      .package(url: "https://github.com/m-housh/swift-identified-storage.git", from: "0.1.0")
     ],
     targets: [
-        .target(
-            name: "<My Target>",
-            dependencies: [
-                .product(name: "IdentifiedStorage", package: "swift-identified-storage")
-            ]
-        )
+      .target(
+        name: "<My Target>",
+        dependencies: [
+          .product(name: "IdentifiedStorage", package: "swift-identified-storage")
+        ]
+      )
     ]
 )
 ```
 
-# Basic Usage
+## Basic Usage
 
 Given the following `Todo` model.
 
@@ -40,8 +42,18 @@ Given the following `Todo` model.
 struct Todo: Equatable, Identifiable {
   var id: UUID
   var description: String
-  var isComplete: Bool = true
+  var isComplete: Bool = false
 }
+
+#if DEBUG
+extension Todo {
+  static let mocks: [Self] = [
+    .init(id: UUID(0), description: "Buy milk"),
+    .init(id: UUID(1), description: "Walk the dog"),
+    .init(id: UUID(2), description: "Wash the car", isComplete: true)
+  ]
+}
+#endif
 ```
 
 And the todo client interface.
@@ -82,6 +94,8 @@ Conform the request types to the appropriate conversion types.
 
 ```swift
 #if DEBUG
+import IdentifiedStorage
+
 extension TodoClient.FetchRequest: FetchRequestConvertible {
 
   func fetch(from values: IdentifiedArrayOf<Todo>) -> IdentifiedArrayOf<Todo> {
@@ -114,7 +128,6 @@ extension TodoClient.UpdateRequest: UpdateRequestConvertible {
 Create a mock client factory.
 
 ```swift
-#if DEBUG
 extension TodoClient {
   static func mock(
     initialValues todos: IdentifiedArrayOf<Todo>,
@@ -129,7 +142,7 @@ extension TodoClient {
       timeDelays: timeDelays
     )
 
-    return .init(
+    return TodoClient(
       delete: { try await storage.delete(id: $0) },
       fetch: { try await storage.fetch(request: $0) },
       insert: { try await storage.insert(request: $0) },
@@ -137,9 +150,21 @@ extension TodoClient {
     )
   }
 }
-#endif
+
+extension TodoClient: DependencyKey {
+
+    ...
+
+    static var previewValue: Self {
+      TodoClient.mock(initialValues: .init(uniqueElements: Todo.mocks))
+    }
+}
 ```
 
-# Documentation
+## Documentation
 
 View the api documentation [here](https://m-housh.github.io/swift-identified-storage/documentation/identifiedstorage/).
+
+## License
+
+All modules are released under the MIT license. See [LICENSE](https://github.com/m-housh/swift-identified-storage/blob/main/LICENSE) for details.
